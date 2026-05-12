@@ -1,0 +1,51 @@
+import html
+import io
+import re
+
+import chardet
+import pandas as pd
+
+
+def _detect_encoding(raw: bytes) -> str:
+    result = chardet.detect(raw[:10000])
+    return result["encoding"]
+
+
+def _merge_continuation_lines(text: str) -> str:
+    _DATA_LINE_PATTERN = re.compile(r"^[A-Za-z]{0,2}\d{8,}")
+    lines = text.splitlines()
+    merged = [lines[0]]
+    for line in lines[1:]:
+        if _DATA_LINE_PATTERN.match(line):
+            merged.append(line)
+        else:
+            merged[-1] += line
+    return "\n".join(merged)
+
+
+def process_csv_bytes(raw_bytes: bytes) -> str:
+    encoding = _detect_encoding(raw_bytes)
+    raw_text = raw_bytes.decode(encoding)
+    clean_text = _merge_continuation_lines(raw_text)
+    df = pd.read_csv(io.StringIO(clean_text), encoding=encoding, on_bad_lines="warn")
+    if "依頼者名" in df.columns:
+        df["依頼者名"] = df["依頼者名"].apply(html.unescape)
+    cols = ["comment", "description"]
+    for c in cols:
+        if c in df.columns:
+            df[c] = df[c].astype(str).str.replace(r"\r\n|\r|\n", " ", regex=True)
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding="utf-8")
+    return buf.getvalue()
+
+
+def main():
+    with open("input.csv", "rb") as f:
+        raw_bytes = f.read()
+    result = process_csv_bytes(raw_bytes)
+    with open("output.csv", "w", encoding="utf-8") as f:
+        f.write(result)
+
+
+if __name__ == "__main__":
+    main()
