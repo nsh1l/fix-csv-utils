@@ -1,7 +1,7 @@
 [project]
 name = "fix-newline-in-csv"
 version = "0.1.0"
-description = "Add your description here"
+description = "CSV内のフィールド内改行を除去し、文字コードを自動判別してUTF-8に変換するツール"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
