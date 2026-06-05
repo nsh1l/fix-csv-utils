@@ -1,5 +1,7 @@
 # fix-newline-in-csv
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://fix-csv-utils.streamlit.app)
+
 CSV のフィールド内に埋め込まれた改行を除去し、文字エンコーディングを自動判別して UTF-8 に変換するツールです。
 
 ## 機能
