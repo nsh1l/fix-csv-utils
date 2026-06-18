@@ -2,7 +2,7 @@ import os
 
 import streamlit as st
 
-from main import process_csv_bytes
+from main import detect_input_quoting, process_csv_bytes
 
 st.title("CSV 改行・文字コード変換")
 st.write("入力ファイルの改行（フィールド内の改行）を空白に置換し、文字コードを自動判別して UTF-8 に変換します。")
@@ -29,9 +29,12 @@ if uploaded_file is not None:
     col = split_column.strip() if split_column.strip() else None
     with st.spinner("処理中..."):
         result = process_csv_bytes(raw_bytes, split_column=col, quoting=quoting)
+    status = detect_input_quoting(raw_bytes)
 
     st.success("変換完了")
+    st.info(status)
     base = os.path.splitext(uploaded_file.name)[0]
+ 
     st.download_button(
         label="変換後 CSV をダウンロード",
         data=result.encode("utf-8"),

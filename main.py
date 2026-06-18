@@ -33,6 +33,13 @@ _QUOTING_MODES = {
     "nonnumeric": csv.QUOTE_NONNUMERIC,
 }
 
+_QUOTING_DESCRIPTIONS = {
+    csv.QUOTE_MINIMAL: "minimal (quotes only when necessary)",
+    csv.QUOTE_ALL: "all fields are quoted",
+    csv.QUOTE_NONE: "no quoting",
+    csv.QUOTE_NONNUMERIC: "non-numeric fields are quoted",
+}
+
 
 def _resolve_quoting(mode: str) -> int:
     """Convert quoting mode string to csv module constant."""
@@ -41,6 +48,31 @@ def _resolve_quoting(mode: str) -> int:
         return _QUOTING_MODES[key]
     valid = ", ".join(_QUOTING_MODES)
     raise ValueError(f"Unknown quoting mode '{mode}'. Valid: {valid}")
+
+
+def _describe_quoting_mode(mode: int) -> str:
+    return _QUOTING_DESCRIPTIONS.get(mode, "unknown quoting mode")
+
+
+def detect_input_quoting(raw_bytes: bytes) -> str:
+    encoding = _detect_encoding(raw_bytes)
+    try:
+        sample_text = raw_bytes.decode(encoding)
+    except UnicodeDecodeError:
+        sample_text = raw_bytes.decode(encoding, errors="replace")
+
+    sample = "\n".join(sample_text.splitlines()[:20])
+    if not sample.strip():
+        return "入力ファイルが空です"
+
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=[",", "\t", ";", "|"])
+        mode_desc = _describe_quoting_mode(dialect.quoting)
+        return f"Detected quoting mode: {mode_desc}"
+    except csv.Error:
+        if '"' in sample:
+            return "Quotes detected but quoting mode could not be determined"
+        return "Quotes not detected in input"
 
 
 def _explode_by_delimiter(df: pd.DataFrame, column: str, delimiter: str = "/") -> pd.DataFrame:
@@ -89,10 +121,12 @@ def main():
 
     with open(input_path, "rb") as f:
         raw_bytes = f.read()
+    quoting_status = detect_input_quoting(raw_bytes)
     result = process_csv_bytes(raw_bytes, split_column=args.split_column, quoting=args.quoting)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(result)
     print(f"✅ {output_path} に出力しました")
+    print(f"ℹ️ {quoting_status}")
 
 
 if __name__ == "__main__":
