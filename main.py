@@ -25,7 +25,17 @@ def _merge_continuation_lines(text: str) -> str:
     return "\n".join(merged)
 
 
-def process_csv_bytes(raw_bytes: bytes) -> str:
+def _explode_by_delimiter(df: pd.DataFrame, column: str, delimiter: str = "/") -> pd.DataFrame:
+    """Split values in `column` by `delimiter` and create separate rows."""
+    if column not in df.columns:
+        return df
+    df[column] = df[column].astype(str).str.split(delimiter)
+    df = df.explode(column)
+    df[column] = df[column].str.strip()
+    return df.reset_index(drop=True)
+
+
+def process_csv_bytes(raw_bytes: bytes, split_column: str | None = None) -> str:
     encoding = _detect_encoding(raw_bytes)
     raw_text = raw_bytes.decode(encoding)
     clean_text = _merge_continuation_lines(raw_text)
@@ -36,6 +46,8 @@ def process_csv_bytes(raw_bytes: bytes) -> str:
     for c in cols:
         if c in df.columns:
             df[c] = df[c].astype(str).str.replace(r"\r\n|\r|\n", " ", regex=True)
+    if split_column and split_column in df.columns:
+        df = _explode_by_delimiter(df, split_column)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding="utf-8")
     return buf.getvalue()
@@ -44,6 +56,7 @@ def process_csv_bytes(raw_bytes: bytes) -> str:
 def main():
     parser = argparse.ArgumentParser(description="CSV内の改行・文字コードを修正")
     parser.add_argument("input", nargs="?", default="input.csv", help="入力CSVファイル")
+    parser.add_argument("--split-column", "-s", help="このカラムの `/` 区切り値を分割して行展開")
     args = parser.parse_args()
 
     input_path = args.input
@@ -52,7 +65,7 @@ def main():
 
     with open(input_path, "rb") as f:
         raw_bytes = f.read()
-    result = process_csv_bytes(raw_bytes)
+    result = process_csv_bytes(raw_bytes, split_column=args.split_column)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(result)
     print(f"✅ {output_path} に出力しました")
