@@ -1,4 +1,5 @@
 import argparse
+import csv
 import html
 import io
 import os
@@ -25,6 +26,23 @@ def _merge_continuation_lines(text: str) -> str:
     return "\n".join(merged)
 
 
+_QUOTING_MODES = {
+    "minimal": csv.QUOTE_MINIMAL,
+    "all": csv.QUOTE_ALL,
+    "none": csv.QUOTE_NONE,
+    "nonnumeric": csv.QUOTE_NONNUMERIC,
+}
+
+
+def _resolve_quoting(mode: str) -> int:
+    """Convert quoting mode string to csv module constant."""
+    key = mode.strip().lower()
+    if key in _QUOTING_MODES:
+        return _QUOTING_MODES[key]
+    valid = ", ".join(_QUOTING_MODES)
+    raise ValueError(f"Unknown quoting mode '{mode}'. Valid: {valid}")
+
+
 def _explode_by_delimiter(df: pd.DataFrame, column: str, delimiter: str = "/") -> pd.DataFrame:
     """Split values in `column` by `delimiter` and create separate rows."""
     if column not in df.columns:
@@ -35,7 +53,7 @@ def _explode_by_delimiter(df: pd.DataFrame, column: str, delimiter: str = "/") -
     return df.reset_index(drop=True)
 
 
-def process_csv_bytes(raw_bytes: bytes, split_column: str | None = None) -> str:
+def process_csv_bytes(raw_bytes: bytes, split_column: str | None = None, quoting: str = "minimal") -> str:
     encoding = _detect_encoding(raw_bytes)
     raw_text = raw_bytes.decode(encoding)
     clean_text = _merge_continuation_lines(raw_text)
@@ -49,7 +67,7 @@ def process_csv_bytes(raw_bytes: bytes, split_column: str | None = None) -> str:
     if split_column and split_column in df.columns:
         df = _explode_by_delimiter(df, split_column)
     buf = io.StringIO()
-    df.to_csv(buf, index=False, encoding="utf-8")
+    df.to_csv(buf, index=False, encoding="utf-8", quoting=_resolve_quoting(quoting))
     return buf.getvalue()
 
 
@@ -57,6 +75,12 @@ def main():
     parser = argparse.ArgumentParser(description="CSV内の改行・文字コードを修正")
     parser.add_argument("input", nargs="?", default="input.csv", help="入力CSVファイル")
     parser.add_argument("--split-column", "-s", help="このカラムの `/` 区切り値を分割して行展開")
+    parser.add_argument(
+        "--quoting", "-q",
+        default="minimal",
+        choices=["minimal", "all", "none", "nonnumeric"],
+        help="出力CSVの quoting モード（default: minimal）",
+    )
     args = parser.parse_args()
 
     input_path = args.input
@@ -65,7 +89,7 @@ def main():
 
     with open(input_path, "rb") as f:
         raw_bytes = f.read()
-    result = process_csv_bytes(raw_bytes, split_column=args.split_column)
+    result = process_csv_bytes(raw_bytes, split_column=args.split_column, quoting=args.quoting)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(result)
     print(f"✅ {output_path} に出力しました")

@@ -12,12 +12,23 @@ split_column = st.text_input(
     "展開するカラム名（`/` 区切りの値を複数行に分割、未指定なら通常変換のみ）",
     placeholder="例: 品番",
 )
+quoting = st.selectbox(
+    "出力のダブルクオートモード",
+    options=["minimal", "all", "none", "nonnumeric"],
+    index=0,
+    help=(
+        "minimal: 必要最小限のみ（デフォルト）\n"
+        "all: すべてのフィールドをクオート\n"
+        "none: 一切クオートしない\n"
+        "nonnumeric: 数字以外をクオート"
+    ),
+)
 
 if uploaded_file is not None:
     raw_bytes = uploaded_file.read()
     col = split_column.strip() if split_column.strip() else None
     with st.spinner("処理中..."):
-        result = process_csv_bytes(raw_bytes, split_column=col)
+        result = process_csv_bytes(raw_bytes, split_column=col, quoting=quoting)
 
     st.success("変換完了")
     base = os.path.splitext(uploaded_file.name)[0]
