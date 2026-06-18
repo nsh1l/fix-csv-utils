@@ -61,6 +61,7 @@ def detect_input_quoting(raw_bytes: bytes) -> str:
     except UnicodeDecodeError:
         sample_text = raw_bytes.decode(encoding, errors="replace")
 
+    sample_text = _normalize_line_endings(sample_text)
     sample = "\n".join(sample_text.splitlines()[:20])
     if not sample.strip():
         return "入力ファイルが空です"
@@ -85,9 +86,14 @@ def _explode_by_delimiter(df: pd.DataFrame, column: str, delimiter: str = "/") -
     return df.reset_index(drop=True)
 
 
+def _normalize_line_endings(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def process_csv_bytes(raw_bytes: bytes, split_column: str | None = None, quoting: str = "minimal") -> str:
     encoding = _detect_encoding(raw_bytes)
     raw_text = raw_bytes.decode(encoding)
+    raw_text = _normalize_line_endings(raw_text)
     clean_text = _merge_continuation_lines(raw_text)
     df = pd.read_csv(io.StringIO(clean_text), encoding=encoding, on_bad_lines="warn")
     if "依頼者名" in df.columns:
