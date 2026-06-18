@@ -1,5 +1,7 @@
+import io
 import os
 
+import pandas as pd
 import streamlit as st
 
 from main import detect_input_quoting, process_csv_bytes
@@ -34,7 +36,7 @@ if uploaded_file is not None:
     st.success("変換完了")
     st.info(status)
     base = os.path.splitext(uploaded_file.name)[0]
- 
+
     st.download_button(
         label="変換後 CSV をダウンロード",
         data=result.encode("utf-8"),
@@ -44,6 +46,8 @@ if uploaded_file is not None:
 
     st.divider()
     st.subheader("プレビュー（先頭5行）")
-    lines = result.splitlines()
-    preview = "\n".join(lines[:6])
-    st.text(preview)
+    try:
+        preview_df = pd.read_csv(io.StringIO(result))
+        st.dataframe(preview_df.head(5))
+    except pd.errors.EmptyDataError:
+        st.info("CSVに有効な行が含まれていません")
