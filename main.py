@@ -1,5 +1,7 @@
+import argparse
 import html
 import io
+import os
 import re
 
 import chardet
@@ -40,11 +42,20 @@ def process_csv_bytes(raw_bytes: bytes) -> str:
 
 
 def main():
-    with open("input.csv", "rb") as f:
+    parser = argparse.ArgumentParser(description="CSV内の改行・文字コードを修正")
+    parser.add_argument("input", nargs="?", default="input.csv", help="入力CSVファイル")
+    args = parser.parse_args()
+
+    input_path = args.input
+    stem = os.path.splitext(input_path)[0]
+    output_path = f"{stem}_beautify.csv"
+
+    with open(input_path, "rb") as f:
         raw_bytes = f.read()
     result = process_csv_bytes(raw_bytes)
-    with open("output.csv", "w", encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(result)
+    print(f"✅ {output_path} に出力しました")
 
 
 if __name__ == "__main__":

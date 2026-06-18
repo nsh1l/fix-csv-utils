@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 
 from main import process_csv_bytes
@@ -13,10 +15,11 @@ if uploaded_file is not None:
         result = process_csv_bytes(raw_bytes)
 
     st.success("変換完了")
+    base = os.path.splitext(uploaded_file.name)[0]
     st.download_button(
         label="変換後 CSV をダウンロード",
         data=result.encode("utf-8"),
-        file_name="output.csv",
+        file_name=f"{base}_beautify.csv",
         mime="text/csv",
     )
 
